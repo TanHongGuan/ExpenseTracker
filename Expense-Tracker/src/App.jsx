@@ -105,6 +105,7 @@ function getTodayDateInput() {
 
 function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -116,7 +117,13 @@ function AuthPage() {
     setMessage("");
 
     try {
-      if (isSignUp) {
+      if (isResetMode) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        });
+        if (error) throw error;
+        setMessage("Password reset email sent. Check your inbox.");
+      } else if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -141,10 +148,12 @@ function AuthPage() {
     <div className="min-h-screen bg-[#140F23] text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-[#2A1D3D] rounded-3xl p-8 border border-[#3B2754]">
         <h1 className="text-3xl font-bold mb-2">
-          {isSignUp ? "Create Account" : "Sign In"}
+          {isResetMode ? "Reset Password" : isSignUp ? "Create Account" : "Sign In"}
         </h1>
         <p className="text-[#C9A9F5] mb-6">
-          Use your account to keep your own expense data.
+          {isResetMode
+            ? "Enter your email and we will send you a password reset link."
+            : "Use your account to keep your own expense data."}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -159,12 +168,131 @@ function AuthPage() {
             />
           </div>
 
+          {!isResetMode && (
+            <div>
+              <label className="block text-[#D0B0F8] mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+                required
+              />
+            </div>
+          )}
+
+          {message && (
+            <p className="text-sm text-pink-300">{message}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 font-semibold hover:opacity-90 disabled:opacity-60"
+          >
+            {loading
+              ? "Please wait..."
+              : isResetMode
+                ? "Send Reset Email"
+                : isSignUp
+                  ? "Create Account"
+                  : "Sign In"}
+          </button>
+        </form>
+
+        {!isResetMode && (
+          <button
+            onClick={() => {
+              setIsResetMode(true);
+              setMessage("");
+            }}
+            className="mt-4 text-[#C9A9F5] hover:text-white"
+          >
+            Forgot password?
+          </button>
+        )}
+
+        <button
+          onClick={() => {
+            setIsResetMode(false);
+            setIsSignUp((prev) => !prev);
+            setMessage("");
+          }}
+          className="mt-4 text-[#C9A9F5] hover:text-white"
+        >
+          {isResetMode
+            ? "Back to sign in"
+            : isSignUp
+            ? "Already have an account? Sign in"
+            : "No account yet? Create one"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordPage({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setMessage("");
+
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+
+      setMessage("Password updated successfully.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      onDone();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#140F23] text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-[#2A1D3D] rounded-3xl p-8 border border-[#3B2754]">
+        <h1 className="text-3xl font-bold mb-2">Set New Password</h1>
+        <p className="text-[#C9A9F5] mb-6">
+          Choose a new password for your account.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[#D0B0F8] mb-2">Password</label>
+            <label className="block text-[#D0B0F8] mb-2">New Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
               required
             />
@@ -179,18 +307,9 @@ function AuthPage() {
             disabled={loading}
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 font-semibold hover:opacity-90 disabled:opacity-60"
           >
-            {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+            {loading ? "Please wait..." : "Update Password"}
           </button>
         </form>
-
-        <button
-          onClick={() => setIsSignUp((prev) => !prev)}
-          className="mt-4 text-[#C9A9F5] hover:text-white"
-        >
-          {isSignUp
-            ? "Already have an account? Sign in"
-            : "No account yet? Create one"}
-        </button>
       </div>
     </div>
   );
@@ -2246,8 +2365,13 @@ function AppShell({ session }) {
 export default function App() {
   const [session, setSession] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
+    if (window.location.hash.includes("type=recovery")) {
+      setIsRecoveryMode(true);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setCheckingSession(false);
@@ -2255,7 +2379,10 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecoveryMode(true);
+      }
       setSession(session);
       setCheckingSession(false);
     });
@@ -2273,6 +2400,10 @@ export default function App() {
 
   if (!session) {
     return <AuthPage />;
+  }
+
+  if (isRecoveryMode) {
+    return <ResetPasswordPage onDone={() => setIsRecoveryMode(false)} />;
   }
 
   return <AppShell session={session} />;
