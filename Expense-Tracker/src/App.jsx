@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Wallet,
   TrendingDown,
+  TrendingUp,
   DollarSign,
   Calendar,
   LayoutDashboard,
@@ -11,6 +12,9 @@ import {
   Plus,
   Trash2,
   X,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -25,65 +29,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-
-const initialExpenses = [
-  {
-    id: 1,
-    name: "Coffee Shop",
-    category: "Food",
-    method: "Cash",
-    date: "2026-03-29",
-    amount: 6.5,
-  },
-  {
-    id: 2,
-    name: "Grocery Shopping",
-    category: "Food",
-    method: "Card",
-    date: "2026-03-28",
-    amount: 85.5,
-  },
-  {
-    id: 3,
-    name: "Uber to Work",
-    category: "Transport",
-    method: "E-wallet",
-    date: "2026-03-27",
-    amount: 15.0,
-  },
-  {
-    id: 4,
-    name: "Netflix",
-    category: "Entertainment",
-    method: "Card",
-    date: "2026-03-26",
-    amount: 45.9,
-  },
-  {
-    id: 5,
-    name: "Electric Bill",
-    category: "Bills",
-    method: "Bank Transfer",
-    date: "2026-03-25",
-    amount: 120.0,
-  },
-  {
-    id: 6,
-    name: "Pharmacy",
-    category: "Health",
-    method: "Card",
-    date: "2026-03-24",
-    amount: 30.0,
-  },
-  {
-    id: 7,
-    name: "Online Shopping",
-    category: "Shopping",
-    method: "Card",
-    date: "2026-03-23",
-    amount: 131.59,
-  },
-];
+import { supabase } from "./supabase";
 
 const categoryColors = {
   Food: "#FF6B6B",
@@ -92,19 +38,40 @@ const categoryColors = {
   Shopping: "#95D5C0",
   Bills: "#F28482",
   Health: "#C9C9E8",
+  Savings: "#6A0572",
 };
 
 const categoryIcons = {
   Food: "🍔",
+  Drinks: "☕",
   Transport: "🚗",
   Entertainment: "🎬",
   Shopping: "🛍️",
   Bills: "📄",
   Health: "💊",
+  Savings: "💰",
 };
 
+const builtInCategories = [
+  "Food",
+  "Drinks",
+  "Transport",
+  "Entertainment",
+  "Shopping",
+  "Bills",
+  "Health",
+  "Savings",  
+];
+
+const builtInMethods = [
+  "Cash",
+  "Card",
+  "E-wallet",
+  "Bank Transfer",
+];
+
 function formatCurrency(amount) {
-  return `$${amount.toFixed(2)}`;
+  return `RM${Number(amount).toFixed(2)}`;
 }
 
 function formatDateHeading(dateString) {
@@ -125,10 +92,111 @@ function formatMonthYear(dateString) {
   });
 }
 
-function getTodayDateInput() {
-  return new Date().toISOString().split("T")[0];
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
-function NavBar({ currentPage, setCurrentPage }) {
+
+function getTodayDateInput() {
+  return formatDateInputValue(new Date());
+}
+
+function AuthPage() {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setMessage("Account created. You can now sign in.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+      }
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#140F23] text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-[#2A1D3D] rounded-3xl p-8 border border-[#3B2754]">
+        <h1 className="text-3xl font-bold mb-2">
+          {isSignUp ? "Create Account" : "Sign In"}
+        </h1>
+        <p className="text-[#C9A9F5] mb-6">
+          Use your account to keep your own expense data.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+              required
+            />
+          </div>
+
+          {message && (
+            <p className="text-sm text-pink-300">{message}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 font-semibold hover:opacity-90 disabled:opacity-60"
+          >
+            {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+          </button>
+        </form>
+
+        <button
+          onClick={() => setIsSignUp((prev) => !prev)}
+          className="mt-4 text-[#C9A9F5] hover:text-white"
+        >
+          {isSignUp
+            ? "Already have an account? Sign in"
+            : "No account yet? Create one"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NavBar({ currentPage, setCurrentPage, onSignOut }) {
   return (
     <div className="w-full bg-[#241735] border-b border-[#34214A] px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -162,9 +230,23 @@ function NavBar({ currentPage, setCurrentPage }) {
           <Receipt size={18} />
           <span className="font-medium">Expenses</span>
         </button>
+
+        <button
+          onClick={() => setCurrentPage("investments")}
+          className={`flex items-center gap-2 px-5 py-3 rounded-2xl border transition ${
+            currentPage === "investments"
+              ? "bg-[#3A204F] text-pink-300 border-pink-500/30"
+              : "text-purple-200 border-transparent hover:bg-[#2B1D3F]"
+          }`}
+        >
+          <TrendingUp size={18} />
+          <span className="font-medium">Investments</span>
+        </button>
       </div>
 
-      <div className="flex items-center gap-5 text-purple-200">
+      
+
+      <div className="flex items-center gap-4 text-purple-200">
         <button
           onClick={() => setCurrentPage("settings")}
           className={`p-2 rounded-xl transition ${
@@ -174,6 +256,14 @@ function NavBar({ currentPage, setCurrentPage }) {
           }`}
         >
           <Settings size={22} />
+        </button>
+
+        <button
+          onClick={onSignOut}
+          className="p-2 rounded-xl hover:bg-[#2B1D3F]"
+          title="Sign out"
+        >
+          <LogOut size={22} />
         </button>
 
         <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-500 to-fuchsia-500 flex items-center justify-center">
@@ -186,19 +276,19 @@ function NavBar({ currentPage, setCurrentPage }) {
 
 function Card({ icon, title, value, subtitle, iconBg }) {
   return (
-    <div className="bg-[#2A1D3D] rounded-3xl p-5">
+    <div className="bg-[#2A1D3D] rounded-3xl p-6">
       <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
+        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
         style={{ background: iconBg }}
       >
         {icon}
       </div>
 
-      <p className="text-[#D0B0F8] text-lg">{title}</p>
+      <p className="text-[#D0B0F8] text-base">{title}</p>
       <h2 className="text-white text-3xl md:text-4xl font-bold mt-3 leading-none">
-  {value}
-</h2>
-      <p className="text-[#8E6BB8] text-base mt-2">{subtitle}</p>
+        {value}
+      </h2>
+      <p className="text-[#8E6BB8] text-sm mt-2">{subtitle}</p>
     </div>
   );
 }
@@ -212,19 +302,110 @@ function ChartCard({ title, children }) {
   );
 }
 
-function DashboardPage({ totalExpenses, spendableBalance, dailyBudget, pieData, barData }) {
+function MonthYearSelector({
+  selectedYear,
+  setSelectedYear,
+  selectedMonthIndex,
+  setSelectedMonthIndex,
+}) {
+  const currentYear = new Date().getFullYear();
+  const monthOptions = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+
+  return (
+    <div className="bg-[#181126] rounded-2xl px-5 py-3 min-w-[320px] flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          if (selectedMonthIndex === 0) {
+            setSelectedMonthIndex(11);
+            setSelectedYear((year) => year - 1);
+          } else {
+            setSelectedMonthIndex((month) => month - 1);
+          }
+        }}
+        className="px-3 py-2 rounded-xl bg-[#2A1D3D] hover:bg-[#3A2953]"
+      >
+        ←
+      </button>
+
+      <select
+        value={selectedMonthIndex}
+        onChange={(e) => setSelectedMonthIndex(Number(e.target.value))}
+        className="bg-transparent text-white outline-none text-xl"
+      >
+        {monthOptions.map((month, index) => (
+          <option key={month} value={index} className="text-black">
+            {month}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(Number(e.target.value))}
+        className="bg-transparent text-white outline-none text-xl"
+      >
+        {Array.from({ length: 10 }, (_, i) => currentYear - 5 + i).map((year) => (
+          <option key={year} value={year} className="text-black">
+            {year}
+          </option>
+        ))}
+      </select>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (selectedMonthIndex === 11) {
+            setSelectedMonthIndex(0);
+            setSelectedYear((year) => year + 1);
+          } else {
+            setSelectedMonthIndex((month) => month + 1);
+          }
+        }}
+        className="px-3 py-2 rounded-xl bg-[#2A1D3D] hover:bg-[#3A2953]"
+      >
+        →
+      </button>
+    </div>
+  );
+}
+
+function DashboardPage({
+  totalIncome,
+  totalExpenses,
+  spendableBalance,
+  dailyBudget,
+  pieData,
+  barData,
+  selectedYear,
+  setSelectedYear,
+  selectedMonthIndex,
+  setSelectedMonthIndex,
+}) {
   return (
     <>
       <h1 className="text-4xl md:text-5xl font-bold">Dashboard</h1>
-      <p className="text-[#C9A9F5] text-2xl mt-3 mb-10">
+      <p className="text-[#C9A9F5] text-xl mt-3 mb-10">
         Track your spending and stay on budget
       </p>
+
+      <div className="mb-8">
+        <MonthYearSelector
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          selectedMonthIndex={selectedMonthIndex}
+          setSelectedMonthIndex={setSelectedMonthIndex}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <Card
           icon={<Wallet size={28} />}
           title="Total Income"
-          value="$4,500.00"
+          value={formatCurrency(totalIncome)}
           subtitle="Monthly income"
           iconBg="linear-gradient(135deg, #4F46E5, #9333EA)"
         />
@@ -232,7 +413,7 @@ function DashboardPage({ totalExpenses, spendableBalance, dailyBudget, pieData, 
           icon={<TrendingDown size={28} />}
           title="Total Expenses"
           value={formatCurrency(totalExpenses)}
-          subtitle={`${((totalExpenses / 4500) * 100).toFixed(1)}% of budget`}
+          subtitle={`${totalIncome > 0 ? ((totalExpenses / totalIncome) * 100).toFixed(1) : "0.0"}% of Income`}
           iconBg="linear-gradient(135deg, #FF2D55, #E11D48)"
         />
         <Card
@@ -275,6 +456,27 @@ function DashboardPage({ totalExpenses, spendableBalance, dailyBudget, pieData, 
               </PieChart>
             </ResponsiveContainer>
           </div>
+
+          <div className="mt-6 space-y-3">
+            {pieData.map((item) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between bg-[#181126] rounded-2xl px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-[#D0B0F8]">{item.name}</span>
+                </div>
+
+                <span className="font-semibold text-white">
+                  {formatCurrency(item.value)}
+                </span>
+              </div>
+            ))}
+          </div>
         </ChartCard>
 
         <ChartCard title="Daily Spending">
@@ -302,19 +504,23 @@ function DashboardPage({ totalExpenses, spendableBalance, dailyBudget, pieData, 
     </>
   );
 }
+
 function AddExpenseModal({
   onClose,
   onAddExpense,
+  defaultDate,
   defaultCategory,
   defaultMethod,
+  allCategories,
+  allMethods,
 }) {
   const [formData, setFormData] = useState({
-  name: "",
-  amount: "",
-  category: defaultCategory,
-  method: defaultMethod,
-  date: getTodayDateInput(),
-});
+    name: "",
+    amount: "",
+    category: defaultCategory,
+    method: defaultMethod,
+    date: defaultDate,
+  });
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -324,13 +530,12 @@ function AddExpenseModal({
     }));
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!formData.name.trim() || !formData.amount || Number(formData.amount) <= 0) {
       return;
     }
 
-    onAddExpense({
-      id: Date.now(),
+    await onAddExpense({
       name: formData.name.trim(),
       amount: Number(formData.amount),
       category: formData.category,
@@ -338,20 +543,16 @@ function AddExpenseModal({
       date: formData.date,
     });
 
-    // 🔥 reset form but KEEP modal open
-    setFormData({
+    setFormData((prev) => ({
+      ...prev,
       name: "",
       amount: "",
-      category: defaultCategory,
-      method: defaultMethod,
-      date: getTodayDateInput(),
-    });
+    }));
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50">
       <div className="w-full max-w-xl bg-[#241735] rounded-3xl p-8 border border-[#3B2754]">
-        
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-3xl font-bold">Add New Expense</h2>
           <button
@@ -398,12 +599,9 @@ function AddExpenseModal({
                 onChange={handleChange}
                 className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
               >
-                <option>Food</option>
-                <option>Transport</option>
-                <option>Entertainment</option>
-                <option>Shopping</option>
-                <option>Bills</option>
-                <option>Health</option>
+                {allCategories.map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
               </select>
             </div>
 
@@ -415,28 +613,57 @@ function AddExpenseModal({
                 onChange={handleChange}
                 className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
               >
-                <option>Cash</option>
-                <option>Card</option>
-                <option>E-wallet</option>
-                <option>Bank Transfer</option>
+                {allMethods.map((method) => (
+                  <option key={method}>{method}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-[#D0B0F8] mb-2">Date</label>
-            <input
-              type="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
-            />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const current = new Date(formData.date);
+                  current.setDate(current.getDate() - 1);
+                  setFormData((prev) => ({
+                    ...prev,
+                    date: formatDateInputValue(current),
+                  }));
+                }}
+                className="px-3 py-3 rounded-2xl bg-[#2F2145] hover:bg-[#3A2953] text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="flex-1 bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  const current = new Date(formData.date);
+                  current.setDate(current.getDate() + 1);
+                  setFormData((prev) => ({
+                    ...prev,
+                    date: formatDateInputValue(current),
+                  }));
+                }}
+                className="px-3 py-3 rounded-2xl bg-[#2F2145] hover:bg-[#3A2953] text-white"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
 
-          {/* 🔥 NEW BUTTON DESIGN */}
           <div className="flex justify-end gap-4 pt-6">
-  
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-2xl text-lg font-semibold bg-[#2F2145] hover:bg-[#3A2953]"
@@ -450,7 +677,138 @@ function AddExpenseModal({
             >
               Add Expense
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function AddIncomeModal({ onClose, onAddIncome, defaultDate }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    amount: "",
+    date: defaultDate,
+  });
 
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  async function handleAdd() {
+    if (!formData.name.trim() || !formData.amount || Number(formData.amount) <= 0) {
+      return;
+    }
+
+    await onAddIncome({
+      name: formData.name.trim(),
+      amount: Number(formData.amount),
+      date: formData.date,
+    });
+
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50">
+      <div className="w-full max-w-xl bg-[#241735] rounded-3xl p-8 border border-[#3B2754]">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold">Add Income</h2>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-[#2F2145] flex items-center justify-center hover:bg-[#3A2953]"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Income Source</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter income source"
+              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Amount</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              placeholder="Enter amount"
+              className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[#D0B0F8] mb-2">Date</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const current = new Date(formData.date);
+                  current.setDate(current.getDate() - 1);
+                  setFormData((prev) => ({
+                    ...prev,
+                    date: formatDateInputValue(current),
+                  }));
+                }}
+                className="px-3 py-3 rounded-2xl bg-[#2F2145] hover:bg-[#3A2953] text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="flex-1 bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  const current = new Date(formData.date);
+                  current.setDate(current.getDate() + 1);
+                  setFormData((prev) => ({
+                    ...prev,
+                    date: formatDateInputValue(current),
+                  }));
+                }}
+                className="px-3 py-3 rounded-2xl bg-[#2F2145] hover:bg-[#3A2953] text-white"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4 pt-6">
+            <button
+              onClick={onClose}
+              className="px-6 py-3 rounded-2xl text-lg font-semibold bg-[#2F2145] hover:bg-[#3A2953]"
+            >
+              Done
+            </button>
+
+            <button
+              onClick={handleAdd}
+              className="px-6 py-3 rounded-2xl text-lg font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90"
+            >
+              Add Income
+            </button>
           </div>
         </div>
       </div>
@@ -460,18 +818,36 @@ function AddExpenseModal({
 
 function ExpensesPage({
   expenses,
-  setExpenses,
+  income,
+  onAddExpense,
+  onDeleteExpense,
+  onAddIncome,
+  onDeleteIncome,
+  defaultEntryDate,
   defaultCategory,
   defaultMethod,
+  allCategories,
+  allMethods,
+  selectedYear,
+  setSelectedYear,
+  selectedMonthIndex,
+  setSelectedMonthIndex,
 }) {
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  }, [expenses]);
+  const selectedMonth = `${selectedYear}-${String(selectedMonthIndex + 1).padStart(2, "0")}`;
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((expense) => expense.date?.slice(0, 7) === selectedMonth);
+  }, [expenses, selectedMonth]);
+
+  const filteredIncome = useMemo(() => {
+    return income.filter((item) => item.date?.slice(0, 7) === selectedMonth);
+  }, [income, selectedMonth]);
 
   const groupedExpenses = useMemo(() => {
-    const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     const groups = {};
     sorted.forEach((expense) => {
@@ -484,46 +860,56 @@ function ExpensesPage({
     return Object.entries(groups).map(([date, items]) => ({
       date,
       items,
-      total: items.reduce((sum, item) => sum + item.amount, 0),
+      total: items.reduce((sum, item) => sum + Number(item.amount), 0),
     }));
-  }, [expenses]);
+  }, [filteredExpenses]);
 
-  function handleAddExpense(newExpense) {
-    setExpenses((prev) => [newExpense, ...prev]);
-  }
+  const groupedIncome = useMemo(() => {
+    const sorted = [...filteredIncome].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  function handleDeleteExpense(id) {
-    setExpenses((prev) => prev.filter((expense) => expense.id !== id));
-  }
+    const groups = {};
+    sorted.forEach((item) => {
+      if (!groups[item.date]) {
+        groups[item.date] = [];
+      }
+      groups[item.date].push(item);
+    });
 
-  const latestDate = expenses.length > 0 ? expenses[0].date : getTodayDateInput();
-  const monthLabel = formatMonthYear(latestDate);
+    return Object.entries(groups).map(([date, items]) => ({
+      date,
+      items,
+      total: items.reduce((sum, item) => sum + Number(item.amount), 0),
+    }));
+  }, [filteredIncome]);
+
+  
 
   return (
     <>
       <h1 className="text-4xl md:text-5xl font-bold">Expense Tracker</h1>
 
-      <div className="bg-[#2A1D3D] rounded-3xl p-7 mt-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-        <div className="flex items-center gap-4">
-          <Calendar className="text-[#C9A9F5]" />
-          <div className="bg-[#181126] rounded-2xl px-5 py-3 min-w-[230px]">
-            <p className="text-2xl">{monthLabel}</p>
-          </div>
-        </div>
+      <MonthYearSelector
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        selectedMonthIndex={selectedMonthIndex}
+        setSelectedMonthIndex={setSelectedMonthIndex}
+      />
 
-        <div className="text-left md:text-right">
-          <p className="text-[#D0B0F8] text-lg">Total Expenses</p>
-          <h2 className="text-5xl font-bold">{formatCurrency(totalExpenses)}</h2>
-        </div>
-      </div>
-
-      <div className="mt-8">
+      <div className="mt-8 flex items-center justify-between">
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-3 bg-gradient-to-r from-pink-600 to-purple-600 px-6 py-4 rounded-3xl text-2xl font-semibold hover:opacity-90"
+          onClick={() => setShowIncomeModal(true)}
+          className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 rounded-3xl text-lg font-semibold hover:opacity-90"
         >
           <Plus size={24} />
-          Add New Expense
+          Add Income
+        </button>
+
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-3 bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-3 rounded-3xl text-lg font-semibold hover:opacity-90"
+        >
+          <Plus size={24} />
+          Add Expense
         </button>
       </div>
 
@@ -564,7 +950,7 @@ function ExpensesPage({
                       {formatCurrency(expense.amount)}
                     </span>
                     <button
-                      onClick={() => handleDeleteExpense(expense.id)}
+                      onClick={() => onDeleteExpense(expense.id)}
                       className="w-11 h-11 rounded-full bg-[#3A204F] hover:bg-[#512E6C] flex items-center justify-center text-pink-300"
                     >
                       <Trash2 size={18} />
@@ -577,28 +963,104 @@ function ExpensesPage({
         ))}
       </div>
 
+      <div className="mt-10">
+        <h2 className="text-3xl font-bold mb-6 text-[#A7F3D0]">
+          Income History
+        </h2>
+
+        <div className="space-y-6">
+          {groupedIncome.map((group) => (
+            <div key={group.date} className="bg-[#1F3A33] rounded-3xl p-5">
+              <div className="flex items-center justify-between border-b border-[#2E5A4E] pb-5">
+                <div className="flex items-center gap-3 text-[#D1FAE5]">
+                  <Calendar size={18} />
+                  <span className="text-2xl font-semibold">
+                    {formatDateHeading(group.date)}
+                  </span>
+                </div>
+                <span className="text-2xl font-bold text-[#86EFAC]">
+                  {formatCurrency(group.total)}
+                </span>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {group.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between py-3"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="w-16 h-16 rounded-2xl bg-[#2E5A4E] flex items-center justify-center text-3xl">
+                        💵
+                      </div>
+
+                      <div>
+                        <h3 className="text-xl font-semibold">{item.name}</h3>
+                        <p className="text-[#A7F3D0] text-lg mt-1">Income</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <span className="text-xl font-bold text-[#86EFAC]">
+                        {formatCurrency(item.amount)}
+                      </span>
+                      <button
+                        onClick={() => onDeleteIncome(item.id)}
+                        className="w-11 h-11 rounded-full bg-[#21453B] hover:bg-[#2E5A4E] flex items-center justify-center text-[#A7F3D0]"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {showModal && (
         <AddExpenseModal
           onClose={() => setShowModal(false)}
-          onAddExpense={handleAddExpense}
+          onAddExpense={onAddExpense}
+          defaultDate={defaultEntryDate}
           defaultCategory={defaultCategory}
           defaultMethod={defaultMethod}
+          allCategories={allCategories}
+          allMethods={allMethods}
+        />
+      )}
+      {showIncomeModal && (
+        <AddIncomeModal
+          onClose={() => setShowIncomeModal(false)}
+          onAddIncome={onAddIncome}
+          defaultDate={defaultEntryDate}
         />
       )}
     </>
   );
 }
-
 function SettingsPage({
   defaultCategory,
   setDefaultCategory,
   defaultMethod,
   setDefaultMethod,
+  builtInCategories,
+  builtInMethods,
+  customCategories,
+  customMethods,
+  onAddCategory,
+  onDeleteCategory,
+  onAddMethod,
+  onDeleteMethod,
 }) {
+  const [newCategory, setNewCategory] = useState("");
+  const [newMethod, setNewMethod] = useState("");
+
   return (
     <>
       <h1 className="text-4xl md:text-5xl font-bold">Settings</h1>
-      <p className="text-[#C9A9F5] text-2xl mt-3 mb-10">
+      <p className="text-[#C9A9F5] text-xl mt-3 mb-10">
         Choose your default expense preferences
       </p>
 
@@ -612,12 +1074,9 @@ function SettingsPage({
             onChange={(e) => setDefaultCategory(e.target.value)}
             className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none text-lg"
           >
-            <option>Food</option>
-            <option>Transport</option>
-            <option>Entertainment</option>
-            <option>Shopping</option>
-            <option>Bills</option>
-            <option>Health</option>
+            {[...builtInCategories, ...customCategories].map((category) => (
+              <option key={category}>{category}</option>
+            ))}
           </select>
         </div>
 
@@ -630,54 +1089,649 @@ function SettingsPage({
             onChange={(e) => setDefaultMethod(e.target.value)}
             className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none text-lg"
           >
-            <option>Cash</option>
-            <option>Card</option>
-            <option>E-wallet</option>
-            <option>Bank Transfer</option>
+            {[...builtInMethods, ...customMethods].map((method) => (
+              <option key={method}>{method}</option>
+            ))}
           </select>
+        </div>
+
+        <div className="border-t border-[#3B2754] pt-6">
+          <h2 className="text-2xl font-bold mb-4">Custom Categories</h2>
+
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="Add new category"
+              className="flex-1 bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+            />
+            <button
+              onClick={() => {
+                onAddCategory(newCategory);
+                setNewCategory("");
+              }}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 font-semibold"
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {customCategories.map((category) => (
+              <div
+                key={category}
+                className="flex items-center justify-between bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3"
+              >
+                <span>{category}</span>
+                <button
+                  onClick={() => onDeleteCategory(category)}
+                  className="text-pink-300 hover:text-pink-200"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[#3B2754] pt-6">
+          <h2 className="text-2xl font-bold mb-4">Custom Payment Methods</h2>
+
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={newMethod}
+              onChange={(e) => setNewMethod(e.target.value)}
+              placeholder="Add new payment method"
+              className="flex-1 bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3 text-white outline-none"
+            />
+            <button
+              onClick={() => {
+                onAddMethod(newMethod);
+                setNewMethod("");
+              }}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 font-semibold"
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {customMethods.map((method) => (
+              <div
+                key={method}
+                className="flex items-center justify-between bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-3"
+              >
+                <span>{method}</span>
+                <button
+                  onClick={() => onDeleteMethod(method)}
+                  className="text-pink-300 hover:text-pink-200"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>
   );
 }
-function App() {
-  const [currentPage, setCurrentPage] = useState("expenses");
-  const [expenses, setExpenses] = useState(initialExpenses);
+
+
+function InvestmentsPage({
+  totalSavings,
+  totalInvested,
+  totalGrowth,
+  totalAssets,
+  allocationData,
+  contributionHistory,
+  growthHistory,
+  onAddContribution,
+  onAddGrowth,
+  onDeleteContribution,
+  onDeleteGrowth,
+}) {
+  const [contributionAmount, setContributionAmount] = useState("");
+  const [allocationName, setAllocationName] = useState("");
+  const [contributionType, setContributionType] = useState("Savings");
+
+  const [growthAmount, setGrowthAmount] = useState("");
+  const [growthSource, setGrowthSource] = useState("Bank Interest");
+  const [growthDate, setGrowthDate] = useState(getTodayDateInput());
+
+  const [stockPrice, setStockPrice] = useState("");
+  const [lots, setLots] = useState("");
+
+  const [fees, setFees] = useState("");
+
+  return (
+    <>
+      <h1 className="text-4xl md:text-5xl font-bold">Investment & Savings</h1>
+      <p className="text-[#C9A9F5] text-xl mt-3 mb-10">
+        Grow your wealth and track your progress
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+        <Card
+          icon={<Wallet size={28} />}
+          title="Total Savings"
+          value={formatCurrency(totalSavings)}
+          subtitle='Money under "Savings" type'
+          iconBg="linear-gradient(135deg, #7C3AED, #A855F7)"
+        />
+        <Card
+          icon={<Plus size={28} />}
+          title="Total Invested"
+          value={formatCurrency(totalInvested)}
+          subtitle='Money under "Investment" type'
+          iconBg="linear-gradient(135deg, #0EA5E9, #2563EB)"
+        />
+        <Card
+          icon={<Wallet size={28} />}
+          title="Total Assets"
+          value={formatCurrency(totalAssets)}
+          subtitle="Savings plus investments"
+          iconBg="linear-gradient(135deg, #F59E0B, #F97316)"
+        />
+        <Card
+          icon={<TrendingUp size={28} />}
+          title="Growth Earned"
+          value={formatCurrency(totalGrowth)}
+          subtitle="Passive growth"
+          iconBg="linear-gradient(135deg, #10B981, #14B8A6)"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-8 mb-10">
+        <div className="bg-[#2A1D3D] rounded-3xl p-8">
+          <h2 className="text-2xl font-bold mb-8">Record Where Savings Went</h2>
+
+          <div className="space-y-6">
+  <div>
+    <label className="block text-[#D0B0F8] mb-3 text-lg">Asset / Destination</label>
+    <input
+      type="text"
+      value={allocationName}
+      onChange={(e) => setAllocationName(e.target.value)}
+      placeholder="e.g. GXBank, VOO, Bitcoin"
+      className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none"
+    />
+  </div>
+
+  <div>
+    <label className="block text-[#D0B0F8] mb-3 text-lg">Type</label>
+    <div className="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        onClick={() => setContributionType("Savings")}
+        className={`py-4 rounded-2xl font-semibold ${
+          contributionType === "Savings"
+            ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white"
+            : "bg-[#181126] border border-[#3C2A55] text-white"
+        }`}
+      >
+        Savings
+      </button>
+      <button
+        type="button"
+        onClick={() => setContributionType("Investment")}
+        className={`py-4 rounded-2xl font-semibold ${
+          contributionType === "Investment"
+            ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white"
+            : "bg-[#181126] border border-[#3C2A55] text-white"
+        }`}
+      >
+        Investment
+      </button>
+    </div>
+  </div>
+
+  {contributionType === "Savings" && (
+    <div>
+      <label className="block text-[#D0B0F8] mb-3 text-lg">Amount</label>
+      <div className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 flex items-center gap-3">
+        <span className="text-white">RM</span>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={contributionAmount}
+          onChange={(e) => setContributionAmount(e.target.value)}
+          placeholder="0.00"
+          className="bg-transparent w-full text-white outline-none"
+        />
+      </div>
+    </div>
+  )}
+
+  {contributionType === "Investment" && (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+    
+      <div>
+        <label className="block text-[#D0B0F8] mb-3 text-lg">Stock Price</label>
+        <div className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 flex items-center gap-3">
+          <span className="text-white">RM</span>
+          <input
+            type="number"
+            min="0"
+            step="0.0001"
+            value={stockPrice}
+            onChange={(e) => setStockPrice(e.target.value)}
+            placeholder="0.00"
+            className="bg-transparent w-full text-white outline-none"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[#D0B0F8] mb-3 text-lg">Lots</label>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={lots}
+          onChange={(e) => setLots(e.target.value)}
+          placeholder="100"
+          className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[#D0B0F8] mb-3 text-lg">Fees</label>
+        <div className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 flex items-center gap-3">
+          <span className="text-white">RM</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={fees}
+            onChange={(e) => setFees(e.target.value)}
+            placeholder="0.00"
+            className="bg-transparent w-full text-white outline-none"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[#D0B0F8] mb-3 text-lg">Amount (auto) </label>
+        <div className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 flex items-center gap-3">
+          <span className="text-white">RM</span>
+          <input
+            type="number"
+            value={
+              stockPrice !== "" && lots !== ""
+                ? (
+                    Number(stockPrice) * Number(lots) +
+                    Number(fees || 0)
+                  ).toFixed(2)
+                : ""
+            }
+            readOnly
+            placeholder="0.00"
+            className="bg-transparent w-full text-white outline-none"
+          />
+        </div>
+      </div>
+
+    
+    </div>
+  )}
+
+  <button
+    onClick={() => {
+      const finalAmount =
+        contributionType === "Investment"
+          ? Number(stockPrice || 0) * Number(lots || 0) + Number(fees || 0)
+          : Number(contributionAmount || 0);
+
+      if (!allocationName.trim() || finalAmount <= 0) return;
+
+      onAddContribution({
+        amount: finalAmount,
+        category: allocationName.trim(),
+        type: contributionType,
+        date: getTodayDateInput(),
+        stock_price: contributionType === "Investment" ? Number(stockPrice || 0) : null,
+        lots: contributionType === "Investment" ? Number(lots || 0) : null,
+      });
+
+      setContributionAmount("");
+      setAllocationName("");
+      setStockPrice("");
+      setLots("");
+      setFees("");
+    }}
+    className="w-full py-4 rounded-2xl text-lg font-semibold bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90"
+  >
+    + Add Allocation
+  </button>
+
+  <div className="border border-[#4C2F6D] rounded-2xl px-4 py-4 text-[#D0B0F8]">
+    ⓘ Record where your saved money was placed, such as GXBank, VOO, or Bitcoin
+  </div>
+</div>
+        </div>
+
+        <div className="bg-[#2A1D3D] rounded-3xl p-8">
+          <h2 className="text-2xl font-bold mb-8">Record Growth</h2>
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[#D0B0F8] mb-3 text-lg">Amount</label>
+              <div className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 flex items-center gap-3">
+                <span className="text-white">RM</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={growthAmount}
+                  onChange={(e) => setGrowthAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="bg-transparent w-full text-white outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[#D0B0F8] mb-3 text-lg">Source</label>
+              <select
+                value={growthSource}
+                onChange={(e) => setGrowthSource(e.target.value)}
+                className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none"
+              >
+                <option>Bank Interest</option>
+                <option>Dividend</option>
+                <option>Capital Gain</option>
+                <option>ETF Dividend</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[#D0B0F8] mb-3 text-lg">Date</label>
+              <input
+                type="date"
+                value={growthDate}
+                onChange={(e) => setGrowthDate(e.target.value)}
+                className="w-full bg-[#181126] border border-[#3C2A55] rounded-2xl px-4 py-4 text-white outline-none"
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                if (!growthAmount) return;
+
+                onAddGrowth({
+                  amount: Number(growthAmount),
+                  source: growthSource,
+                  date: growthDate,
+                });
+
+                setGrowthAmount("");
+              }}
+              className="w-full py-4 rounded-2xl text-lg font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90"
+
+            >
+              Add Growth
+            </button>
+
+            <div className="border border-[#1E6B62] rounded-2xl px-4 py-4 text-[#B6F5E7]">
+              ↗ Track returns earned from your savings and investments
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.2fr] gap-8 mb-10">
+        <div className="bg-[#2A1D3D] rounded-3xl p-8">
+          <h2 className="text-2xl font-bold mb-8">Allocation Distribution</h2>
+
+          <div className="h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={allocationData}
+                  cx="50%"
+                  cy="48%"
+                  outerRadius={95}
+                  dataKey="value"
+                  label={({ percent }) =>
+                    percent > 0 ? `${(percent * 100).toFixed(0)}%` : ""
+                  }
+                >
+                  {allocationData.map((entry, index) => (
+                    <Cell key={index} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {allocationData.map((item) => (
+              <div key={item.name} className="flex items-center gap-3 text-[#D0B0F8]">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span>{item.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-[#2A1D3D] rounded-3xl p-8">
+          <h2 className="text-2xl font-bold mb-8">Where Your Money Goes</h2>
+
+          <div className="space-y-4">
+            {contributionHistory.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between bg-[#181126] rounded-2xl px-5 py-5"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#2B1D3F] flex items-center justify-center text-2xl">
+                    {item.category === "Emergency Fund" && "🛡️"}
+                    {item.category === "Stocks / ETFs" && "📈"}
+                    {item.category === "Crypto" && "₿"}
+                    {item.category === "Fixed Deposit" && "🏦"}
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold">{item.category}</h3>
+
+                    <p className="text-[#D0B0F8] text-sm mt-1">
+                      {item.type} <span className="mx-2">•</span>
+                      {new Date(item.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </p>
+
+                    {item.type === "Investment" && (
+                      <p className="text-[#BFA6E8] text-sm mt-1">
+                        Stock Price: {item.stock_price ? formatCurrency(item.stock_price) : "-"}
+                        <span className="mx-2">•</span>
+                        Lots: {item.lots ?? "-"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(item.amount)}
+                  </div>
+
+                  <button
+                    onClick={() => onDeleteContribution(item.id)}
+                    className="w-11 h-11 rounded-full bg-[#3A204F] hover:bg-[#512E6C] flex items-center justify-center text-pink-300"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[#2A1D3D] rounded-3xl p-8">
+        <div className="flex items-start justify-between mb-8">
+          <h2 className="text-2xl font-bold">Growth History</h2>
+          <div className="text-right">
+            <p className="text-[#C9A9F5] text-sm">Total Growth</p>
+            <p className="text-3xl font-bold text-[#18E7B2]">
+              +{formatCurrency(totalGrowth)}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {growthHistory.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between bg-[#181126] rounded-2xl px-5 py-5"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#123B39] flex items-center justify-center text-2xl">
+                  ✨
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold">{item.source}</h3>
+                  <p className="text-[#D0B0F8] text-sm mt-1">
+                    📅 {new Date(item.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="text-2xl font-bold text-[#18E7B2]">
+                  +{formatCurrency(item.amount)}
+                </div>
+
+                <button
+                  onClick={() => onDeleteGrowth(item.id)}
+                  className="w-11 h-11 rounded-full bg-[#1B4742] hover:bg-[#236158] flex items-center justify-center text-[#7EF0CD]"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AppShell({ session }) {
+  const now = new Date();
+
+  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [expenses, setExpenses] = useState([]);
+  const [loadingExpenses, setLoadingExpenses] = useState(true);
 
   const [defaultCategory, setDefaultCategory] = useState("Food");
   const [defaultMethod, setDefaultMethod] = useState("Cash");
 
-  const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  }, [expenses]);
+  const [income, setIncome] = useState([]);
+  const [loadingIncome, setLoadingIncome] = useState(true);
 
-  const totalIncome = 4500;
-  const spendableBalance = totalIncome - totalExpenses;
-  const dailyBudget = spendableBalance / 30;
+  const [customCategories, setCustomCategories] = useState([]);
+  const [customMethods, setCustomMethods] = useState([]);
+  const [entryDate, setEntryDate] = useState(getTodayDateInput());
+
+  const [investmentContributions, setInvestmentContributions] = useState([]);
+  const [investmentGrowth, setInvestmentGrowth] = useState([]);
+  const [loadingInvestments, setLoadingInvestments] = useState(true);
+
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(now.getMonth());
+
+  const allCategories = [...builtInCategories, ...customCategories];
+  const allMethods = [...builtInMethods, ...customMethods];
+
+  const selectedMonth = `${selectedYear}-${String(
+    selectedMonthIndex + 1
+  ).padStart(2, "0")}`;
+
+  const dashboardFilteredExpenses = useMemo(() => {
+    return expenses.filter(
+      (expense) => expense.date?.slice(0, 7) === selectedMonth
+    );
+  }, [expenses, selectedMonth]);
+
+  const dashboardFilteredIncome = useMemo(() => {
+    return income.filter(
+      (item) => item.date?.slice(0, 7) === selectedMonth
+    );
+  }, [income, selectedMonth]);
+
+  const totalIncome = useMemo(() => {
+    return dashboardFilteredIncome.reduce((sum, item) => sum + Number(item.amount), 0);
+  }, [dashboardFilteredIncome]);
+
+  const totalSavedFromExpenses = useMemo(() => {
+    return dashboardFilteredExpenses
+      .filter((expense) => expense.category === "Savings")
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  }, [dashboardFilteredExpenses]);
+
+  const totalExpenses = useMemo(() => {
+    return dashboardFilteredExpenses
+      .filter((expense) => expense.category !== "Savings")
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  }, [dashboardFilteredExpenses]);
+
+  const spendableBalance = totalIncome - totalExpenses - totalSavedFromExpenses;
+
+  const daysInMonth = new Date(
+    selectedYear,
+    selectedMonthIndex + 1,
+    0
+  ).getDate();
+
+  const dailyBudget = spendableBalance / daysInMonth; 
 
   const pieData = useMemo(() => {
     const totals = {};
 
-    expenses.forEach((expense) => {
-      totals[expense.category] = (totals[expense.category] || 0) + expense.amount;
-    });
+    dashboardFilteredExpenses
+      .filter((expense) => expense.category !== "Savings")
+      .forEach((expense) => {
+        totals[expense.category] =
+          (totals[expense.category] || 0) + Number(expense.amount);
+      });
 
     return Object.entries(totals).map(([name, value]) => ({
       name,
       value,
-      color: categoryColors[name],
+      color: categoryColors[name] || "#A855F7",
     }));
-  }, [expenses]);
+  }, [dashboardFilteredExpenses]);
 
   const barData = useMemo(() => {
     const byDate = {};
 
-    expenses.forEach((expense) => {
-      byDate[expense.date] = (byDate[expense.date] || 0) + expense.amount;
-    });
+    dashboardFilteredExpenses
+      .filter((expense) => expense.category !== "Savings")
+      .forEach((expense) => {
+        byDate[expense.date] =
+          (byDate[expense.date] || 0) + Number(expense.amount);
+      });
 
     return Object.entries(byDate)
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .slice(-7)
       .map(([date, amount]) => ({
         day: new Date(date).toLocaleDateString("en-US", {
           month: "short",
@@ -685,43 +1739,541 @@ function App() {
         }),
         amount,
       }));
-  }, [expenses]);
+  }, [dashboardFilteredExpenses]);
+
+  const totalSavings = useMemo(() => {
+    return investmentContributions.reduce(
+      (sum, item) =>
+        item.type === "Savings" ? sum + Number(item.amount || 0) : sum,
+      0
+    );
+  }, [investmentContributions]);
+
+  const totalInvested = useMemo(() => {
+    return investmentContributions.reduce(
+      (sum, item) =>
+        item.type === "Investment" ? sum + Number(item.amount || 0) : sum,
+      0
+    );
+  }, [investmentContributions]);
+
+  const totalGrowth = useMemo(() => {
+    return investmentGrowth.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+  }, [investmentGrowth]);
+
+  const totalAssets = totalSavings + totalInvested;
+
+  const allocationData = useMemo(() => {
+    const totals = {};
+
+    investmentContributions.forEach((item, index) => {
+      const category = item.category || "Uncategorized";
+      totals[category] = {
+        value: (totals[category]?.value || 0) + Number(item.amount || 0),
+        color:
+          totals[category]?.color ||
+          Object.values(categoryColors)[index % Object.values(categoryColors).length] ||
+          "#A855F7",
+      };
+    });
+
+    return Object.entries(totals).map(([name, details]) => ({
+      name,
+      value: details.value,
+      color: details.color,
+    }));
+  }, [investmentContributions]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  async function fetchInvestmentContributions() {
+    const { data, error } = await supabase
+      .from("investment_contributions")
+      .select("*")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Fetch contributions failed:", error);
+      return;
+    }
+
+    setInvestmentContributions(data || []);
+  }
+
+  async function fetchInvestmentGrowth() {
+    const { data, error } = await supabase
+      .from("investment_growth")
+      .select("*")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Fetch growth failed:", error);
+      return;
+    }
+
+    setInvestmentGrowth(data || []);
+  }
+  async function fetchUserOptions() {
+    const { data, error } = await supabase
+      .from("user_options")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Fetch user options failed:", error);
+      return;
+    }
+
+    const categories = data
+      .filter((item) => item.type === "category")
+      .map((item) => item.value);
+
+    const methods = data
+      .filter((item) => item.type === "method")
+      .map((item) => item.value);
+
+    setCustomCategories(categories);
+    setCustomMethods(methods);
+  } 
+
+  async function handleAddCategory(newCategory) {
+    const trimmed = newCategory.trim();
+    if (!trimmed || allCategories.includes(trimmed)) return;
+
+    const { error } = await supabase.from("user_options").insert([
+      {
+        type: "category",
+        value: trimmed,
+      },
+    ]);
+
+    if (error) {
+      console.error("Add category failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setCustomCategories((prev) => [...prev, trimmed]);
+  }
+
+  async function handleDeleteCategory(categoryToDelete) {
+    const { error } = await supabase
+      .from("user_options")
+      .delete()
+      .eq("type", "category")
+      .eq("value", categoryToDelete);
+
+    if (error) {
+      console.error("Delete category failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setCustomCategories((prev) =>
+      prev.filter((item) => item !== categoryToDelete)
+    );
+
+    if (defaultCategory === categoryToDelete) {
+      await handleDefaultCategoryChange("Food");
+    }
+  }
+
+  async function fetchIncome() {
+    setLoadingIncome(true);
+
+    const { data, error } = await supabase
+      .from("income")
+      .select("*")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setIncome(data);
+    }
+
+    setLoadingIncome(false);
+  }
+  useEffect(() => {
+    async function loadAll() {
+      setLoadingInvestments(true);
+
+      await Promise.all([
+        fetchExpenses(),
+        fetchIncome(),
+        fetchUserSettings(),
+        fetchInvestmentContributions(),
+        fetchInvestmentGrowth(),
+      ]);
+
+      setLoadingInvestments(false);
+    }
+
+    loadAll();
+  }, []);
+
+  async function handleAddContribution(newContribution) {
+    const { data, error } = await supabase
+      .from("investment_contributions")
+      .insert([newContribution])
+      .select();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setInvestmentContributions((prev) => [data[0], ...prev]);
+    }
+  }
+
+  async function handleAddGrowth(newGrowth) {
+    const { data, error } = await supabase
+      .from("investment_growth")
+      .insert([newGrowth])
+      .select();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setInvestmentGrowth((prev) => [data[0], ...prev]);
+    }
+  }
+
+  async function handleDeleteContribution(id) {
+    const { error } = await supabase
+      .from("investment_contributions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setInvestmentContributions((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function handleDeleteGrowth(id) {
+    const { error } = await supabase
+      .from("investment_growth")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setInvestmentGrowth((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function handleAddMethod(newMethod) {
+    const trimmed = newMethod.trim();
+    if (!trimmed || allMethods.includes(trimmed)) return;
+
+    const { error } = await supabase.from("user_options").insert([
+      {
+        type: "method",
+        value: trimmed,
+      },
+    ]);
+
+    if (error) {
+      console.error("Add method failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setCustomMethods((prev) => [...prev, trimmed]);
+  }
+
+  async function handleDeleteMethod(methodToDelete) {
+    const { error } = await supabase
+      .from("user_options")
+      .delete()
+      .eq("type", "method")
+      .eq("value", methodToDelete);
+
+    if (error) {
+      console.error("Delete method failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setCustomMethods((prev) =>
+      prev.filter((item) => item !== methodToDelete)
+    );
+
+    if (defaultMethod === methodToDelete) {
+      await handleDefaultMethodChange("Cash");
+    }
+  }
+
+  async function saveUserSettings(category, method) {
+    const { error } = await supabase
+      .from("user_settings")
+      .upsert(
+        {
+          user_id: session.user.id,
+          default_category: category,
+          default_method: method,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id",
+        }
+      );
+
+    if (error) {
+      console.error("Failed to save settings:", error);
+      alert(error.message);
+    }
+  }
+
+  async function handleDefaultCategoryChange(value) {
+    setDefaultCategory(value);
+    await saveUserSettings(value, defaultMethod);
+  }
+
+  async function handleDefaultMethodChange(value) {
+    setDefaultMethod(value);
+    await saveUserSettings(defaultCategory, value);
+  }
+
+  async function handleAddIncome(newIncome) {
+    const { error } = await supabase.from("income").insert([newIncome]);
+
+    if (error) {
+      console.error("Add income failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setEntryDate(newIncome.date);
+    await fetchIncome();
+  }
+
+  async function handleDeleteIncome(id) {
+    const { error } = await supabase.from("income").delete().eq("id", id);
+    if (!error) {
+      setIncome((prev) => prev.filter((item) => item.id !== id));
+    }
+  }
+
+  async function fetchUserSettings() {
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("default_category, default_method")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to fetch settings:", error);
+      return;
+    }
+
+    if (data) {
+      setDefaultCategory(data.default_category || "Food");
+      setDefaultMethod(data.default_method || "Cash");
+    }
+  }
+
+  async function fetchExpenses() {
+    setLoadingExpenses(true);
+
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    console.log("fetched expenses:", data);
+    console.log("fetch expenses error:", error);
+
+    if (!error && data) {
+      setExpenses(data);
+    }
+
+    setLoadingExpenses(false);
+  }
+
+  async function handleAddExpense(newExpense) {
+    const { data, error } = await supabase
+      .from("expenses")
+      .insert([newExpense])
+      .select();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    // 🔥 instant UI update (no reload, modal stays open)
+    if (data && data.length > 0) {
+      setEntryDate(newExpense.date);
+      setExpenses((prev) => [data[0], ...prev]);
+    }
+  }
+
+  async function handleDeleteExpense(id) {
+    const { error } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Delete expense failed:", error);
+      alert(error.message);
+      return;
+    }
+
+    setExpenses((prev) => prev.filter((expense) => expense.id !== id));
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+  }
+
 
   return (
     <div className="min-h-screen bg-[#140F23] text-white">
-      <NavBar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <NavBar
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        onSignOut={handleSignOut}
+      />
 
       <div className="px-6 py-8 max-w-6xl mx-auto">
-        {currentPage === "dashboard" && (
-          <DashboardPage
-            totalExpenses={totalExpenses}
-            spendableBalance={spendableBalance}
-            dailyBudget={dailyBudget}
-            pieData={pieData}
-            barData={barData}
-          />
-        )}
+        <>
+          {loadingExpenses && (
+            <p className="text-[#C9A9F5] mb-4">Loading expenses...</p>
+          )}
 
-        {currentPage === "expenses" && (
-          <ExpensesPage
-            expenses={expenses}
-            setExpenses={setExpenses}
-            defaultCategory={defaultCategory}
-            defaultMethod={defaultMethod}
-          />
-        )}
+          {currentPage === "dashboard" && (
+            <DashboardPage
+              totalIncome={totalIncome}
+              totalExpenses={totalExpenses}
+              spendableBalance={spendableBalance}
+              dailyBudget={dailyBudget}
+              pieData={pieData}
+              barData={barData}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              selectedMonthIndex={selectedMonthIndex}
+              setSelectedMonthIndex={setSelectedMonthIndex}
+            />
+          )}
 
-        {currentPage === "settings" && (
-          <SettingsPage
-            defaultCategory={defaultCategory}
-            setDefaultCategory={setDefaultCategory}
-            defaultMethod={defaultMethod}
-            setDefaultMethod={setDefaultMethod}
-          />
-        )}
+          {currentPage === "expenses" && (
+            <ExpensesPage
+              expenses={expenses}
+              income={income}
+              onAddExpense={handleAddExpense}
+              onDeleteExpense={handleDeleteExpense}
+              onAddIncome={handleAddIncome}
+              onDeleteIncome={handleDeleteIncome}
+              defaultEntryDate={entryDate}
+              defaultCategory={defaultCategory}
+              defaultMethod={defaultMethod}
+              allCategories={allCategories}
+              allMethods={allMethods}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              selectedMonthIndex={selectedMonthIndex}
+              setSelectedMonthIndex={setSelectedMonthIndex}
+            />
+          )}
+
+          {currentPage === "investments" && (
+          <InvestmentsPage
+            totalSavings={totalSavings}
+            totalInvested={totalInvested}
+            totalGrowth={totalGrowth}
+            totalAssets={totalAssets}
+            allocationData={allocationData}
+            contributionHistory={investmentContributions}
+            growthHistory={investmentGrowth}
+            onAddContribution={handleAddContribution}
+            onAddGrowth={handleAddGrowth}
+            onDeleteContribution={handleDeleteContribution}
+            onDeleteGrowth={handleDeleteGrowth}
+            />
+          )}
+
+
+          {currentPage === "settings" && (
+            <SettingsPage
+              defaultCategory={defaultCategory}
+              setDefaultCategory={handleDefaultCategoryChange}
+              defaultMethod={defaultMethod}
+              setDefaultMethod={handleDefaultMethodChange}
+              builtInCategories={builtInCategories}
+              builtInMethods={builtInMethods}
+              customCategories={customCategories}
+              customMethods={customMethods}
+              onAddCategory={handleAddCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onAddMethod={handleAddMethod}
+              onDeleteMethod={handleDeleteMethod}
+            />
+          )}
+        </>
       </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setCheckingSession(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setCheckingSession(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-[#140F23] text-white flex items-center justify-center">
+        Checking session...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthPage />;
+  }
+
+  return <AppShell session={session} />;
+}
