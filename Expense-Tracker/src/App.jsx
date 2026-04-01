@@ -349,18 +349,42 @@ function ResetPasswordPage({ onDone }) {
 
 function NavBar({ currentPage, setCurrentPage, onSignOut }) {
   return (
-    <div className="w-full bg-[#241735] border-b border-[#34214A] px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center">
+    <div className="w-full bg-[#241735] border-b border-[#34214A] px-4 py-4 md:px-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center shrink-0">
           <DollarSign size={22} />
         </div>
-        <span className="text-3xl font-bold">FinanceTracker</span>
+        <span className="text-2xl md:text-3xl font-bold truncate">FinanceTracker</span>
+        </div>
+
+        <div className="flex items-center gap-2 text-purple-200 xl:hidden">
+          <button
+            onClick={() => setCurrentPage("settings")}
+            className={`p-2 rounded-xl transition ${
+              currentPage === "settings"
+                ? "bg-[#3A204F] text-pink-300"
+                : "hover:bg-[#2B1D3F]"
+            }`}
+          >
+            <Settings size={20} />
+          </button>
+
+          <button
+            onClick={onSignOut}
+            className="p-2 rounded-xl hover:bg-[#2B1D3F]"
+            title="Sign out"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:justify-center xl:pb-0 xl:gap-4">
         <button
           onClick={() => setCurrentPage("dashboard")}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl border transition ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition whitespace-nowrap ${
             currentPage === "dashboard"
               ? "bg-[#3A204F] text-pink-300 border-pink-500/30"
               : "text-purple-200 border-transparent hover:bg-[#2B1D3F]"
@@ -372,7 +396,7 @@ function NavBar({ currentPage, setCurrentPage, onSignOut }) {
 
         <button
           onClick={() => setCurrentPage("expenses")}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl border transition ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition whitespace-nowrap ${
             currentPage === "expenses"
               ? "bg-[#3A204F] text-pink-300 border-pink-500/30"
               : "text-purple-200 border-transparent hover:bg-[#2B1D3F]"
@@ -384,7 +408,7 @@ function NavBar({ currentPage, setCurrentPage, onSignOut }) {
 
         <button
           onClick={() => setCurrentPage("investments")}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl border transition ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition whitespace-nowrap ${
             currentPage === "investments"
               ? "bg-[#3A204F] text-pink-300 border-pink-500/30"
               : "text-purple-200 border-transparent hover:bg-[#2B1D3F]"
@@ -397,7 +421,7 @@ function NavBar({ currentPage, setCurrentPage, onSignOut }) {
 
       
 
-      <div className="flex items-center gap-4 text-purple-200">
+      <div className="hidden xl:flex items-center gap-4 text-purple-200">
         <button
           onClick={() => setCurrentPage("settings")}
           className={`p-2 rounded-xl transition ${
@@ -421,22 +445,23 @@ function NavBar({ currentPage, setCurrentPage, onSignOut }) {
           <User size={20} />
         </div>
       </div>
+      </div>
     </div>
   );
 }
 
 function Card({ icon, title, value, subtitle, iconBg }) {
   return (
-    <div className="bg-[#2A1D3D] rounded-3xl p-6">
+    <div className="bg-[#2A1D3D] rounded-3xl p-5 md:p-6">
       <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+        className="w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center mb-4 md:mb-5"
         style={{ background: iconBg }}
       >
         {icon}
       </div>
 
       <p className="text-[#D0B0F8] text-base">{title}</p>
-      <h2 className="text-white text-3xl md:text-4xl font-bold mt-3 leading-none">
+      <h2 className="text-white text-2xl md:text-4xl font-bold mt-3 leading-none break-words">
         {value}
       </h2>
       <p className="text-[#8E6BB8] text-sm mt-2">{subtitle}</p>
@@ -446,8 +471,8 @@ function Card({ icon, title, value, subtitle, iconBg }) {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="bg-[#2A1D3D] rounded-3xl p-8">
-      <h3 className="text-2xl font-bold mb-8">{title}</h3>
+    <div className="bg-[#2A1D3D] rounded-3xl p-5 md:p-8">
+      <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8">{title}</h3>
       {children}
     </div>
   );
@@ -466,7 +491,7 @@ function MonthYearSelector({
   ];
 
   return (
-    <div className="bg-[#181126] rounded-2xl px-5 py-3 min-w-[320px] flex items-center gap-3">
+    <div className="bg-[#181126] rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 md:min-w-[320px]">
       <button
         type="button"
         onClick={() => {
@@ -485,7 +510,7 @@ function MonthYearSelector({
       <select
         value={selectedMonthIndex}
         onChange={(e) => setSelectedMonthIndex(Number(e.target.value))}
-        className="bg-transparent text-white outline-none text-xl"
+        className="min-w-0 bg-transparent text-white outline-none text-lg md:text-xl"
       >
         {monthOptions.map((month, index) => (
           <option key={month} value={index} className="text-black">
@@ -497,7 +522,7 @@ function MonthYearSelector({
       <select
         value={selectedYear}
         onChange={(e) => setSelectedYear(Number(e.target.value))}
-        className="bg-transparent text-white outline-none text-xl"
+        className="min-w-0 bg-transparent text-white outline-none text-lg md:text-xl"
       >
         {Array.from({ length: 10 }, (_, i) => currentYear - 5 + i).map((year) => (
           <option key={year} value={year} className="text-black">
@@ -540,7 +565,7 @@ function DashboardPage({
   return (
     <>
       <h1 className="text-4xl md:text-5xl font-bold">Dashboard</h1>
-      <p className="text-[#C9A9F5] text-xl mt-3 mb-10">
+      <p className="text-lg md:text-xl text-[#C9A9F5] mt-3 mb-8 md:mb-10">
         Track your spending and stay on budget
       </p>
 
@@ -598,15 +623,15 @@ function DashboardPage({
 
       <div className="space-y-6">
         <ChartCard title="Spending by Category">
-          <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-8 items-center">
-            <div className="h-[420px]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 md:gap-8 items-center">
+            <div className="h-[320px] sm:h-[380px] md:h-[420px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="48%"
-                    outerRadius={120}
+                    outerRadius={110}
                     dataKey="value"
                     label={({ name, percent }) =>
                       percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
@@ -646,7 +671,7 @@ function DashboardPage({
         </ChartCard>
 
         <ChartCard title="Daily Spending">
-          <div className="h-[420px]">
+          <div className="h-[320px] sm:h-[380px] md:h-[420px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#3C2756" />
@@ -654,7 +679,9 @@ function DashboardPage({
                   dataKey="day"
                   stroke="#A78BFA"
                   interval={0}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 10 }}
+                  tickMargin={8}
+                  minTickGap={0}
                 />
                 <YAxis
                   stroke="#A78BFA"
@@ -679,6 +706,7 @@ function DashboardPage({
                     position: "right",
                     offset: 12,
                     fill: "#F9A8D4",
+                    fontSize: 12,
                   }}
                 />
                 <Tooltip
@@ -1079,10 +1107,10 @@ function ExpensesPage({
         setSelectedMonthIndex={setSelectedMonthIndex}
       />
 
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={() => setShowIncomeModal(true)}
-          className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 rounded-3xl text-lg font-semibold hover:opacity-90"
+          className="flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 rounded-3xl text-base md:text-lg font-semibold hover:opacity-90"
         >
           <Plus size={24} />
           Add Income
@@ -1090,7 +1118,7 @@ function ExpensesPage({
 
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-3 bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-3 rounded-3xl text-lg font-semibold hover:opacity-90"
+          className="flex items-center justify-center gap-3 bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-3 rounded-3xl text-base md:text-lg font-semibold hover:opacity-90"
         >
           <Plus size={24} />
           Add Expense
@@ -1098,7 +1126,7 @@ function ExpensesPage({
       </div>
 
       <div className="mt-8">
-        <div className="inline-flex flex-wrap gap-3 rounded-3xl bg-[#1E1530] p-3 border border-[#332149]">
+        <div className="inline-flex max-w-full overflow-x-auto gap-3 rounded-3xl bg-[#1E1530] p-3 border border-[#332149]">
           <button
             type="button"
             onClick={() => setActiveSection("expenses")}
@@ -1152,21 +1180,21 @@ function ExpensesPage({
 
                 <div className="mt-5 space-y-4">
                   {group.items.map((expense) => (
-                    <div key={expense.id} className="flex items-center justify-between bg-transparent py-3">
-                      <div className="flex items-center gap-5">
+                    <div key={expense.id} className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-transparent py-3">
+                      <div className="flex items-center gap-4 md:gap-5 min-w-0">
                         <div className="w-16 h-16 rounded-2xl bg-[#3A2953] flex items-center justify-center text-3xl">
                           {categoryIcons[expense.category] || "🧾"}
                         </div>
 
-                        <div>
-                          <h3 className="text-xl md:text-2xl font-semibold">{expense.name}</h3>
-                          <p className="text-[#D0B0F8] text-lg mt-1">
+                        <div className="min-w-0">
+                          <h3 className="text-xl md:text-2xl font-semibold break-words">{expense.name}</h3>
+                          <p className="text-[#D0B0F8] text-base md:text-lg mt-1 break-words">
                             {getCategoryLabel(expense.category)} <span className="mx-2">•</span> {expense.method}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between md:justify-end gap-4">
                         <span className="text-xl md:text-2xl font-bold">{formatCurrency(expense.amount)}</span>
                         <button
                           onClick={() => onDeleteExpense(expense.id)}
@@ -1201,21 +1229,21 @@ function ExpensesPage({
 
                 <div className="mt-5 space-y-4">
                   {group.items.map((expense) => (
-                    <div key={expense.id} className="flex items-center justify-between bg-transparent py-3">
-                      <div className="flex items-center gap-5">
+                    <div key={expense.id} className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-transparent py-3">
+                      <div className="flex items-center gap-4 md:gap-5 min-w-0">
                         <div className="w-16 h-16 rounded-2xl bg-[#5A4030] flex items-center justify-center text-3xl">
                           {categoryIcons[expense.category] || "🧾"}
                         </div>
 
-                        <div>
-                          <h3 className="text-xl md:text-2xl font-semibold">{expense.name}</h3>
-                          <p className="text-[#F6C177] text-lg mt-1">
+                        <div className="min-w-0">
+                          <h3 className="text-xl md:text-2xl font-semibold break-words">{expense.name}</h3>
+                          <p className="text-[#F6C177] text-base md:text-lg mt-1 break-words">
                             {getCategoryLabel(expense.category)} <span className="mx-2">•</span> {expense.method}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between md:justify-end gap-4">
                         <span className="text-xl md:text-2xl font-bold text-[#FFD089]">{formatCurrency(expense.amount)}</span>
                         <button
                           onClick={() => onDeleteExpense(expense.id)}
@@ -1250,19 +1278,19 @@ function ExpensesPage({
 
                 <div className="mt-5 space-y-4">
                   {group.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between py-3">
-                      <div className="flex items-center gap-5">
+                    <div key={item.id} className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between py-3">
+                      <div className="flex items-center gap-4 md:gap-5 min-w-0">
                         <div className="w-16 h-16 rounded-2xl bg-[#2E5A4E] flex items-center justify-center text-3xl">
                           💵
                         </div>
 
-                        <div>
-                          <h3 className="text-xl font-semibold">{item.name}</h3>
-                          <p className="text-[#A7F3D0] text-lg mt-1">Income</p>
+                        <div className="min-w-0">
+                          <h3 className="text-xl font-semibold break-words">{item.name}</h3>
+                          <p className="text-[#A7F3D0] text-base md:text-lg mt-1">Income</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between md:justify-end gap-4">
                         <span className="text-xl font-bold text-[#86EFAC]">{formatCurrency(item.amount)}</span>
                         <button
                           onClick={() => onDeleteIncome(item.id)}
@@ -1751,7 +1779,7 @@ function InvestmentsPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.2fr] gap-8 mb-10">
-        <div className="bg-[#2A1D3D] rounded-3xl p-8">
+        <div className="bg-[#2A1D3D] rounded-3xl p-5 md:p-8">
           <h2 className="text-2xl font-bold mb-8">Allocation Distribution</h2>
 
           <div className="h-[320px]">
@@ -1788,11 +1816,11 @@ function InvestmentsPage({
           </div>
         </div>
 
-        <div className="bg-[#2A1D3D] rounded-3xl p-8">
-          <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="bg-[#2A1D3D] rounded-3xl p-5 md:p-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-8">
             <h2 className="text-2xl font-bold">Where Your Money Goes</h2>
 
-            <div className="inline-flex gap-3 rounded-2xl bg-[#181126] p-2 border border-[#3C2A55]">
+            <div className="inline-flex gap-3 rounded-2xl bg-[#181126] p-2 border border-[#3C2A55] self-start">
               <button
                 type="button"
                 onClick={() => setHistoryFilter("Savings")}
@@ -1822,9 +1850,9 @@ function InvestmentsPage({
             {filteredContributionHistory.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between bg-[#181126] rounded-2xl px-5 py-5"
+                className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-[#181126] rounded-2xl px-4 md:px-5 py-5"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0">
                   <div className="w-14 h-14 rounded-2xl bg-[#2B1D3F] flex items-center justify-center text-2xl">
                     {item.category === "Emergency Fund" && "🛡️"}
                     {item.category === "Stocks / ETFs" && "📈"}
@@ -1832,10 +1860,10 @@ function InvestmentsPage({
                     {item.category === "Fixed Deposit" && "🏦"}
                   </div>
 
-                  <div>
-                    <h3 className="text-xl font-semibold">{item.category}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-semibold break-words">{item.category}</h3>
 
-                    <p className="text-[#D0B0F8] text-sm mt-1">
+                    <p className="text-[#D0B0F8] text-sm mt-1 break-words">
                       {item.type} <span className="mx-2">•</span>
                       {new Date(item.date).toLocaleDateString("en-US", {
                         month: "short",
@@ -1845,7 +1873,7 @@ function InvestmentsPage({
                     </p>
 
                     {item.type === "Investment" && (
-                      <p className="text-[#BFA6E8] text-sm mt-1">
+                      <p className="text-[#BFA6E8] text-sm mt-1 break-words">
                         Stock Price: {item.stock_price ? formatCurrency(item.stock_price) : "-"}
                         <span className="mx-2">•</span>
                         Lots: {item.lots ?? "-"}
@@ -1854,7 +1882,7 @@ function InvestmentsPage({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between md:justify-end gap-4">
                   <div className="text-2xl font-bold">
                     {formatCurrency(item.amount)}
                   </div>
