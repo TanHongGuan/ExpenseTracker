@@ -71,7 +71,8 @@ const builtInMethods = [
 ];
 
 function formatCurrency(amount) {
-  return `RM${Number(amount).toFixed(2)}`;
+  const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  return `RM${safeAmount.toFixed(2)}`;
 }
 
 function formatDateHeading(dateString) {
@@ -497,6 +498,7 @@ function DashboardPage({
   totalExpenses,
   spendableBalance,
   dailyBudget,
+  extraBudget,
   pieData,
   barData,
   selectedYear,
@@ -520,35 +522,47 @@ function DashboardPage({
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <Card
-          icon={<Wallet size={28} />}
-          title="Total Income"
-          value={formatCurrency(totalIncome)}
-          subtitle="Monthly income"
-          iconBg="linear-gradient(135deg, #4F46E5, #9333EA)"
-        />
-        <Card
-          icon={<TrendingDown size={28} />}
-          title="Total Expenses"
-          value={formatCurrency(totalExpenses)}
-          subtitle={`${totalIncome > 0 ? ((totalExpenses / totalIncome) * 100).toFixed(1) : "0.0"}% of Income`}
-          iconBg="linear-gradient(135deg, #FF2D55, #E11D48)"
-        />
-        <Card
-          icon={<DollarSign size={28} />}
-          title="Spendable Balance"
-          value={formatCurrency(spendableBalance)}
-          subtitle="Remaining this month"
-          iconBg="linear-gradient(135deg, #10B981, #14B8A6)"
-        />
-        <Card
-          icon={<Calendar size={28} />}
-          title="Daily Budget"
-          value={formatCurrency(dailyBudget)}
-          subtitle="Estimated daily budget"
-          iconBg="linear-gradient(135deg, #7C3AED, #8B5CF6)"
-        />
+      <div className="space-y-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card
+            icon={<Wallet size={28} />}
+            title="Total Income"
+            value={formatCurrency(totalIncome)}
+            subtitle="Monthly income"
+            iconBg="linear-gradient(135deg, #4F46E5, #9333EA)"
+          />
+          <Card
+            icon={<TrendingDown size={28} />}
+            title="Total Expenses"
+            value={formatCurrency(totalExpenses)}
+            subtitle={`${totalIncome > 0 ? ((totalExpenses / totalIncome) * 100).toFixed(1) : "0.0"}% of Income`}
+            iconBg="linear-gradient(135deg, #FF2D55, #E11D48)"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card
+            icon={<DollarSign size={28} />}
+            title="Spendable Balance"
+            value={formatCurrency(spendableBalance)}
+            subtitle="Remaining this month"
+            iconBg="linear-gradient(135deg, #10B981, #14B8A6)"
+          />
+          <Card
+            icon={<Calendar size={28} />}
+            title="Daily Budget"
+            value={formatCurrency(dailyBudget)}
+            subtitle="Estimated daily budget"
+            iconBg="linear-gradient(135deg, #7C3AED, #8B5CF6)"
+          />
+          <Card
+            icon={<TrendingUp size={28} />}
+            title="Extra"
+            value={formatCurrency(extraBudget)}
+            subtitle="Unused budget from earlier days"
+            iconBg="linear-gradient(135deg, #F59E0B, #FB7185)"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1812,6 +1826,7 @@ function AppShell({ session }) {
   }, [dashboardFilteredExpenses]);
 
   const spendableBalance = totalIncome - totalExpenses - totalSavedFromExpenses;
+  const dailyBudgetBase = totalIncome - totalSavedFromExpenses;
 
   const daysInMonth = new Date(
     selectedYear,
@@ -1819,7 +1834,44 @@ function AppShell({ session }) {
     0
   ).getDate();
 
-  const dailyBudget = spendableBalance / daysInMonth; 
+  const dailyBudget = Number.isFinite(dailyBudgetBase / daysInMonth)
+    ? dailyBudgetBase / daysInMonth
+    : 0;
+
+  const isPastSelectedMonth =
+    selectedYear < now.getFullYear() ||
+    (selectedYear === now.getFullYear() && selectedMonthIndex < now.getMonth());
+  const isCurrentSelectedMonth =
+    selectedYear === now.getFullYear() && selectedMonthIndex === now.getMonth();
+  const elapsedDays = isPastSelectedMonth
+    ? daysInMonth
+    : isCurrentSelectedMonth
+      ? now.getDate()
+      : 0;
+  const cutoffDate = elapsedDays
+    ? formatDateInputValue(new Date(selectedYear, selectedMonthIndex, elapsedDays))
+    : null;
+
+  const spendingToDate = useMemo(() => {
+    if (!cutoffDate) {
+      return 0;
+    }
+
+    return dashboardFilteredExpenses
+      .filter(
+        (expense) =>
+          expense.category !== "Savings" &&
+          expense.date &&
+          expense.date <= cutoffDate
+      )
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  }, [cutoffDate, dashboardFilteredExpenses]);
+
+  const extraBudget = elapsedDays > 0
+    ? (Number.isFinite(dailyBudget * elapsedDays - spendingToDate)
+        ? dailyBudget * elapsedDays - spendingToDate
+        : 0)
+    : 0;
 
   const pieData = useMemo(() => {
     const totals = {};
@@ -2294,6 +2346,7 @@ function AppShell({ session }) {
               totalExpenses={totalExpenses}
               spendableBalance={spendableBalance}
               dailyBudget={dailyBudget}
+              extraBudget={extraBudget}
               pieData={pieData}
               barData={barData}
               selectedYear={selectedYear}
