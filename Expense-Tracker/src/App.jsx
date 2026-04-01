@@ -28,6 +28,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import { supabase } from "./supabase";
 
@@ -595,50 +596,52 @@ function DashboardPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="space-y-6">
         <ChartCard title="Spending by Category">
-          <div className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="48%"
-                  outerRadius={120}
-                  dataKey="value"
-                  label={({ name, percent }) =>
-                    percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
-                  }
+          <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-8 items-center">
+            <div className="h-[420px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="48%"
+                    outerRadius={120}
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
+                    }
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="space-y-3">
+              {pieData.map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between bg-[#181126] rounded-2xl px-4 py-3"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Legend />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-[#D0B0F8]">{item.name}</span>
+                  </div>
 
-          <div className="mt-6 space-y-3">
-            {pieData.map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between bg-[#181126] rounded-2xl px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-[#D0B0F8]">{item.name}</span>
+                  <span className="font-semibold text-white">
+                    {formatCurrency(item.value)}
+                  </span>
                 </div>
-
-                <span className="font-semibold text-white">
-                  {formatCurrency(item.value)}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </ChartCard>
 
@@ -647,8 +650,37 @@ function DashboardPage({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#3C2756" />
-                <XAxis dataKey="day" stroke="#A78BFA" />
-                <YAxis stroke="#A78BFA" />
+                <XAxis
+                  dataKey="day"
+                  stroke="#A78BFA"
+                  interval={0}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis
+                  stroke="#A78BFA"
+                  domain={[
+                    0,
+                    (dataMax) => {
+                      const budgetCeiling = dailyBudget * 1.5;
+                      return Math.max(
+                        Number.isFinite(dataMax) ? dataMax : 0,
+                        Number.isFinite(budgetCeiling) ? budgetCeiling : 0
+                      );
+                    },
+                  ]}
+                />
+                <ReferenceLine
+                  y={dailyBudget}
+                  stroke="#F9A8D4"
+                  strokeDasharray="8 8"
+                  strokeWidth={2}
+                  label={{
+                    value: "Daily Budget",
+                    position: "right",
+                    offset: 12,
+                    fill: "#F9A8D4",
+                  }}
+                />
                 <Tooltip
                   formatter={(value) => formatCurrency(value)}
                   contentStyle={{
@@ -658,7 +690,7 @@ function DashboardPage({
                     color: "#fff",
                   }}
                 />
-                <Bar dataKey="amount" fill="#C155B8" radius={[10, 10, 0, 0]} />
+                <Bar dataKey="amount" fill="#C155B8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1425,6 +1457,7 @@ function InvestmentsPage({
   const [contributionAmount, setContributionAmount] = useState("");
   const [allocationName, setAllocationName] = useState("");
   const [contributionType, setContributionType] = useState("Savings");
+  const [historyFilter, setHistoryFilter] = useState("Savings");
 
   const [growthAmount, setGrowthAmount] = useState("");
   const [growthSource, setGrowthSource] = useState("Bank Interest");
@@ -1434,6 +1467,10 @@ function InvestmentsPage({
   const [lots, setLots] = useState("");
 
   const [fees, setFees] = useState("");
+
+  const filteredContributionHistory = useMemo(() => {
+    return contributionHistory.filter((item) => item.type === historyFilter);
+  }, [contributionHistory, historyFilter]);
 
   return (
     <>
@@ -1752,10 +1789,37 @@ function InvestmentsPage({
         </div>
 
         <div className="bg-[#2A1D3D] rounded-3xl p-8">
-          <h2 className="text-2xl font-bold mb-8">Where Your Money Goes</h2>
+          <div className="flex items-start justify-between gap-4 mb-8">
+            <h2 className="text-2xl font-bold">Where Your Money Goes</h2>
 
-          <div className="space-y-4">
-            {contributionHistory.map((item) => (
+            <div className="inline-flex gap-3 rounded-2xl bg-[#181126] p-2 border border-[#3C2A55]">
+              <button
+                type="button"
+                onClick={() => setHistoryFilter("Savings")}
+                className={`px-4 py-2 rounded-xl font-semibold transition ${
+                  historyFilter === "Savings"
+                    ? "bg-[#3A204F] text-pink-300"
+                    : "text-purple-200 hover:bg-[#2A1D3D]"
+                }`}
+              >
+                Savings
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryFilter("Investment")}
+                className={`px-4 py-2 rounded-xl font-semibold transition ${
+                  historyFilter === "Investment"
+                    ? "bg-[#1E3A5F] text-sky-300"
+                    : "text-purple-200 hover:bg-[#2A1D3D]"
+                }`}
+              >
+                Investment
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2">
+            {filteredContributionHistory.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between bg-[#181126] rounded-2xl px-5 py-5"
@@ -1988,6 +2052,7 @@ function AppShell({ session }) {
 
   const barData = useMemo(() => {
     const byDate = {};
+    const totalDaysInMonth = new Date(selectedYear, selectedMonthIndex + 1, 0).getDate();
 
     dashboardFilteredExpenses
       .filter((expense) => !isExcludedBudgetCategory(expense.category))
@@ -1996,17 +2061,19 @@ function AppShell({ session }) {
           (byDate[expense.date] || 0) + Number(expense.amount);
       });
 
-    return Object.entries(byDate)
-      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-      .slice(-7)
-      .map(([date, amount]) => ({
+    return Array.from({ length: totalDaysInMonth }, (_, index) => {
+      const date = formatDateInputValue(
+        new Date(selectedYear, selectedMonthIndex, index + 1)
+      );
+
+      return {
         day: new Date(date).toLocaleDateString("en-US", {
-          month: "short",
           day: "numeric",
         }),
-        amount,
-      }));
-  }, [dashboardFilteredExpenses]);
+        amount: byDate[date] || 0,
+      };
+    });
+  }, [dashboardFilteredExpenses, selectedMonthIndex, selectedYear]);
 
   const totalSavings = useMemo(() => {
     return investmentContributions.reduce(
@@ -2100,6 +2167,7 @@ function AppShell({ session }) {
     const { data, error } = await supabase
       .from("user_options")
       .select("*")
+      .eq("user_id", session.user.id)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -2107,13 +2175,13 @@ function AppShell({ session }) {
       return;
     }
 
-    const categories = data
+    const categories = [...new Set(data
       .filter((item) => item.type === "category")
-      .map((item) => item.value);
+      .map((item) => item.value))];
 
-    const methods = data
+    const methods = [...new Set(data
       .filter((item) => item.type === "method")
-      .map((item) => item.value);
+      .map((item) => item.value))];
 
     setCustomCategories(categories);
     setCustomMethods(methods);
@@ -2125,6 +2193,7 @@ function AppShell({ session }) {
 
     const { error } = await supabase.from("user_options").insert([
       {
+        user_id: session.user.id,
         type: "category",
         value: trimmed,
       },
@@ -2143,6 +2212,7 @@ function AppShell({ session }) {
     const { error } = await supabase
       .from("user_options")
       .delete()
+      .eq("user_id", session.user.id)
       .eq("type", "category")
       .eq("value", categoryToDelete);
 
@@ -2183,6 +2253,7 @@ function AppShell({ session }) {
       await Promise.all([
         fetchExpenses(),
         fetchIncome(),
+        fetchUserOptions(),
         fetchUserSettings(),
         fetchInvestmentContributions(),
         fetchInvestmentGrowth(),
@@ -2260,6 +2331,7 @@ function AppShell({ session }) {
 
     const { error } = await supabase.from("user_options").insert([
       {
+        user_id: session.user.id,
         type: "method",
         value: trimmed,
       },
@@ -2278,6 +2350,7 @@ function AppShell({ session }) {
     const { error } = await supabase
       .from("user_options")
       .delete()
+      .eq("user_id", session.user.id)
       .eq("type", "method")
       .eq("value", methodToDelete);
 
