@@ -31,6 +31,8 @@ import {
 } from "recharts";
 import { supabase } from "./supabase";
 
+const EXCLUDED_BUDGET_CATEGORIES = ["Necessity", "Savings"];
+
 const categoryColors = {
   Food: "#FF6B6B",
   Transport: "#4ECDC4",
@@ -38,6 +40,7 @@ const categoryColors = {
   Shopping: "#95D5C0",
   Bills: "#F28482",
   Health: "#C9C9E8",
+  Necessity: "#6A0572",
   Savings: "#6A0572",
 };
 
@@ -49,6 +52,7 @@ const categoryIcons = {
   Shopping: "🛍️",
   Bills: "📄",
   Health: "💊",
+  Necessity: "🧾",
   Savings: "💰",
 };
 
@@ -60,7 +64,7 @@ const builtInCategories = [
   "Shopping",
   "Bills",
   "Health",
-  "Savings",  
+  "Necessity",
 ];
 
 const builtInMethods = [
@@ -102,6 +106,32 @@ function formatDateInputValue(date) {
 
 function getTodayDateInput() {
   return formatDateInputValue(new Date());
+}
+
+function isExcludedBudgetCategory(category) {
+  return EXCLUDED_BUDGET_CATEGORIES.includes(category);
+}
+
+function getCategoryLabel(category) {
+  return category === "Savings" ? "Necessity" : category;
+}
+
+function groupEntriesByDate(entries) {
+  const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const groups = {};
+
+  sorted.forEach((entry) => {
+    if (!groups[entry.date]) {
+      groups[entry.date] = [];
+    }
+    groups[entry.date].push(entry);
+  });
+
+  return Object.entries(groups).map(([date, items]) => ({
+    date,
+    items,
+    total: items.reduce((sum, item) => sum + Number(item.amount), 0),
+  }));
 }
 
 function AuthPage() {
@@ -968,6 +998,7 @@ function ExpensesPage({
 }) {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [activeSection, setActiveSection] = useState("expenses");
 
   const selectedMonth = `${selectedYear}-${String(selectedMonthIndex + 1).padStart(2, "0")}`;
 
@@ -975,45 +1006,33 @@ function ExpensesPage({
     return expenses.filter((expense) => expense.date?.slice(0, 7) === selectedMonth);
   }, [expenses, selectedMonth]);
 
+  const filteredRegularExpenses = useMemo(() => {
+    return filteredExpenses.filter(
+      (expense) => !isExcludedBudgetCategory(expense.category)
+    );
+  }, [filteredExpenses]);
+
+  const filteredNecessities = useMemo(() => {
+    return filteredExpenses.filter((expense) =>
+      isExcludedBudgetCategory(expense.category)
+    );
+  }, [filteredExpenses]);
+
   const filteredIncome = useMemo(() => {
     return income.filter((item) => item.date?.slice(0, 7) === selectedMonth);
   }, [income, selectedMonth]);
 
-  const groupedExpenses = useMemo(() => {
-    const sorted = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const groupedExpenses = useMemo(
+    () => groupEntriesByDate(filteredRegularExpenses),
+    [filteredRegularExpenses]
+  );
 
-    const groups = {};
-    sorted.forEach((expense) => {
-      if (!groups[expense.date]) {
-        groups[expense.date] = [];
-      }
-      groups[expense.date].push(expense);
-    });
+  const groupedNecessities = useMemo(
+    () => groupEntriesByDate(filteredNecessities),
+    [filteredNecessities]
+  );
 
-    return Object.entries(groups).map(([date, items]) => ({
-      date,
-      items,
-      total: items.reduce((sum, item) => sum + Number(item.amount), 0),
-    }));
-  }, [filteredExpenses]);
-
-  const groupedIncome = useMemo(() => {
-    const sorted = [...filteredIncome].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const groups = {};
-    sorted.forEach((item) => {
-      if (!groups[item.date]) {
-        groups[item.date] = [];
-      }
-      groups[item.date].push(item);
-    });
-
-    return Object.entries(groups).map(([date, items]) => ({
-      date,
-      items,
-      total: items.reduce((sum, item) => sum + Number(item.amount), 0),
-    }));
-  }, [filteredIncome]);
+  const groupedIncome = useMemo(() => groupEntriesByDate(filteredIncome), [filteredIncome]);
 
   
 
@@ -1046,111 +1065,188 @@ function ExpensesPage({
         </button>
       </div>
 
-      <div className="mt-8 space-y-6">
-        {groupedExpenses.map((group) => (
-          <div key={group.date} className="bg-[#2A1D3D] rounded-3xl p-5">
-            <div className="flex items-center justify-between border-b border-[#3B2754] pb-5">
-              <div className="flex items-center gap-3 text-[#D8C1F4]">
-                <Calendar size={18} />
-                <span className="text-2xl font-semibold">
-                  {formatDateHeading(group.date)}
-                </span>
-              </div>
-              <span className="text-2xl font-bold">{formatCurrency(group.total)}</span>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              {group.items.map((expense) => (
-                <div
-                  key={expense.id}
-                  className="flex items-center justify-between bg-transparent py-3"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-[#3A2953] flex items-center justify-center text-3xl">
-                      {categoryIcons[expense.category]}
-                    </div>
-
-                    <div>
-                      <h3 className="text-xl md:text-2xl font-semibold">{expense.name}</h3>
-                      <p className="text-[#D0B0F8] text-lg mt-1">
-                        {expense.category} <span className="mx-2">•</span> {expense.method}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <span className="text-xl md:text-2xl font-bold">
-                      {formatCurrency(expense.amount)}
-                    </span>
-                    <button
-                      onClick={() => onDeleteExpense(expense.id)}
-                      className="w-11 h-11 rounded-full bg-[#3A204F] hover:bg-[#512E6C] flex items-center justify-center text-pink-300"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-10">
-        <h2 className="text-3xl font-bold mb-6 text-[#A7F3D0]">
-          Income History
-        </h2>
-
-        <div className="space-y-6">
-          {groupedIncome.map((group) => (
-            <div key={group.date} className="bg-[#1F3A33] rounded-3xl p-5">
-              <div className="flex items-center justify-between border-b border-[#2E5A4E] pb-5">
-                <div className="flex items-center gap-3 text-[#D1FAE5]">
-                  <Calendar size={18} />
-                  <span className="text-2xl font-semibold">
-                    {formatDateHeading(group.date)}
-                  </span>
-                </div>
-                <span className="text-2xl font-bold text-[#86EFAC]">
-                  {formatCurrency(group.total)}
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-4">
-                {group.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-3"
-                  >
-                    <div className="flex items-center gap-5">
-                      <div className="w-16 h-16 rounded-2xl bg-[#2E5A4E] flex items-center justify-center text-3xl">
-                        💵
-                      </div>
-
-                      <div>
-                        <h3 className="text-xl font-semibold">{item.name}</h3>
-                        <p className="text-[#A7F3D0] text-lg mt-1">Income</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <span className="text-xl font-bold text-[#86EFAC]">
-                        {formatCurrency(item.amount)}
-                      </span>
-                      <button
-                        onClick={() => onDeleteIncome(item.id)}
-                        className="w-11 h-11 rounded-full bg-[#21453B] hover:bg-[#2E5A4E] flex items-center justify-center text-[#A7F3D0]"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+      <div className="mt-8">
+        <div className="inline-flex flex-wrap gap-3 rounded-3xl bg-[#1E1530] p-3 border border-[#332149]">
+          <button
+            type="button"
+            onClick={() => setActiveSection("expenses")}
+            className={`px-5 py-3 rounded-2xl font-semibold transition ${
+              activeSection === "expenses"
+                ? "bg-[#3A204F] text-pink-300"
+                : "text-purple-200 hover:bg-[#2A1D3D]"
+            }`}
+          >
+            Expenses
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection("necessities")}
+            className={`px-5 py-3 rounded-2xl font-semibold transition ${
+              activeSection === "necessities"
+                ? "bg-[#5A4030] text-[#FFD089]"
+                : "text-[#F6C177] hover:bg-[#3A2A1F]"
+            }`}
+          >
+            Necessities
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection("income")}
+            className={`px-5 py-3 rounded-2xl font-semibold transition ${
+              activeSection === "income"
+                ? "bg-[#21453B] text-[#86EFAC]"
+                : "text-[#A7F3D0] hover:bg-[#1F3A33]"
+            }`}
+          >
+            Income
+          </button>
         </div>
       </div>
+
+      {activeSection === "expenses" && (
+        <div className="mt-10">
+          <h2 className="text-3xl font-bold mb-6 text-white">Expenses</h2>
+
+          <div className="space-y-6">
+            {groupedExpenses.map((group) => (
+              <div key={group.date} className="bg-[#2A1D3D] rounded-3xl p-5">
+                <div className="flex items-center justify-between border-b border-[#3B2754] pb-5">
+                  <div className="flex items-center gap-3 text-[#D8C1F4]">
+                    <Calendar size={18} />
+                    <span className="text-2xl font-semibold">{formatDateHeading(group.date)}</span>
+                  </div>
+                  <span className="text-2xl font-bold">{formatCurrency(group.total)}</span>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {group.items.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between bg-transparent py-3">
+                      <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 rounded-2xl bg-[#3A2953] flex items-center justify-center text-3xl">
+                          {categoryIcons[expense.category] || "🧾"}
+                        </div>
+
+                        <div>
+                          <h3 className="text-xl md:text-2xl font-semibold">{expense.name}</h3>
+                          <p className="text-[#D0B0F8] text-lg mt-1">
+                            {getCategoryLabel(expense.category)} <span className="mx-2">•</span> {expense.method}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl md:text-2xl font-bold">{formatCurrency(expense.amount)}</span>
+                        <button
+                          onClick={() => onDeleteExpense(expense.id)}
+                          className="w-11 h-11 rounded-full bg-[#3A204F] hover:bg-[#512E6C] flex items-center justify-center text-pink-300"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "necessities" && (
+        <div className="mt-10">
+          <h2 className="text-3xl font-bold mb-6 text-[#F6C177]">Necessities</h2>
+
+          <div className="space-y-6">
+            {groupedNecessities.map((group) => (
+              <div key={group.date} className="bg-[#3A2A1F] rounded-3xl p-5">
+                <div className="flex items-center justify-between border-b border-[#5A4030] pb-5">
+                  <div className="flex items-center gap-3 text-[#F9D8A8]">
+                    <Calendar size={18} />
+                    <span className="text-2xl font-semibold">{formatDateHeading(group.date)}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-[#FFD089]">{formatCurrency(group.total)}</span>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {group.items.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between bg-transparent py-3">
+                      <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 rounded-2xl bg-[#5A4030] flex items-center justify-center text-3xl">
+                          {categoryIcons[expense.category] || "🧾"}
+                        </div>
+
+                        <div>
+                          <h3 className="text-xl md:text-2xl font-semibold">{expense.name}</h3>
+                          <p className="text-[#F6C177] text-lg mt-1">
+                            {getCategoryLabel(expense.category)} <span className="mx-2">•</span> {expense.method}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl md:text-2xl font-bold text-[#FFD089]">{formatCurrency(expense.amount)}</span>
+                        <button
+                          onClick={() => onDeleteExpense(expense.id)}
+                          className="w-11 h-11 rounded-full bg-[#5A4030] hover:bg-[#70503D] flex items-center justify-center text-[#FFD089]"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "income" && (
+        <div className="mt-10">
+          <h2 className="text-3xl font-bold mb-6 text-[#A7F3D0]">Income History</h2>
+
+          <div className="space-y-6">
+            {groupedIncome.map((group) => (
+              <div key={group.date} className="bg-[#1F3A33] rounded-3xl p-5">
+                <div className="flex items-center justify-between border-b border-[#2E5A4E] pb-5">
+                  <div className="flex items-center gap-3 text-[#D1FAE5]">
+                    <Calendar size={18} />
+                    <span className="text-2xl font-semibold">{formatDateHeading(group.date)}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-[#86EFAC]">{formatCurrency(group.total)}</span>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between py-3">
+                      <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 rounded-2xl bg-[#2E5A4E] flex items-center justify-center text-3xl">
+                          💵
+                        </div>
+
+                        <div>
+                          <h3 className="text-xl font-semibold">{item.name}</h3>
+                          <p className="text-[#A7F3D0] text-lg mt-1">Income</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl font-bold text-[#86EFAC]">{formatCurrency(item.amount)}</span>
+                        <button
+                          onClick={() => onDeleteIncome(item.id)}
+                          className="w-11 h-11 rounded-full bg-[#21453B] hover:bg-[#2E5A4E] flex items-center justify-center text-[#A7F3D0]"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <AddExpenseModal
@@ -1815,13 +1911,13 @@ function AppShell({ session }) {
 
   const totalSavedFromExpenses = useMemo(() => {
     return dashboardFilteredExpenses
-      .filter((expense) => expense.category === "Savings")
+      .filter((expense) => isExcludedBudgetCategory(expense.category))
       .reduce((sum, expense) => sum + Number(expense.amount), 0);
   }, [dashboardFilteredExpenses]);
 
   const totalExpenses = useMemo(() => {
     return dashboardFilteredExpenses
-      .filter((expense) => expense.category !== "Savings")
+      .filter((expense) => !isExcludedBudgetCategory(expense.category))
       .reduce((sum, expense) => sum + Number(expense.amount), 0);
   }, [dashboardFilteredExpenses]);
 
@@ -1860,7 +1956,7 @@ function AppShell({ session }) {
     return dashboardFilteredExpenses
       .filter(
         (expense) =>
-          expense.category !== "Savings" &&
+          !isExcludedBudgetCategory(expense.category) &&
           expense.date &&
           expense.date <= cutoffDate
       )
@@ -1877,7 +1973,7 @@ function AppShell({ session }) {
     const totals = {};
 
     dashboardFilteredExpenses
-      .filter((expense) => expense.category !== "Savings")
+      .filter((expense) => !isExcludedBudgetCategory(expense.category))
       .forEach((expense) => {
         totals[expense.category] =
           (totals[expense.category] || 0) + Number(expense.amount);
@@ -1894,7 +1990,7 @@ function AppShell({ session }) {
     const byDate = {};
 
     dashboardFilteredExpenses
-      .filter((expense) => expense.category !== "Savings")
+      .filter((expense) => !isExcludedBudgetCategory(expense.category))
       .forEach((expense) => {
         byDate[expense.date] =
           (byDate[expense.date] || 0) + Number(expense.amount);
@@ -2264,7 +2360,11 @@ function AppShell({ session }) {
     }
 
     if (data) {
-      setDefaultCategory(data.default_category || "Food");
+      setDefaultCategory(
+        data.default_category === "Savings"
+          ? "Necessity"
+          : data.default_category || "Food"
+      );
       setDefaultMethod(data.default_method || "Cash");
     }
   }
