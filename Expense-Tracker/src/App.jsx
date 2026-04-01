@@ -2034,7 +2034,7 @@ function AppShell({ session }) {
   const elapsedDays = isPastSelectedMonth
     ? daysInMonth
     : isCurrentSelectedMonth
-      ? now.getDate()
+      ? Math.max(now.getDate() - 1, 0)
       : 0;
   const cutoffDate = elapsedDays
     ? formatDateInputValue(new Date(selectedYear, selectedMonthIndex, elapsedDays))
