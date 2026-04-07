@@ -2022,7 +2022,7 @@ function AppShell({ session }) {
     0
   ).getDate();
 
-  const dailyBudget = Number.isFinite(dailyBudgetBase / daysInMonth)
+  const baseDailyBudget = Number.isFinite(dailyBudgetBase / daysInMonth)
     ? dailyBudgetBase / daysInMonth
     : 0;
 
@@ -2056,10 +2056,18 @@ function AppShell({ session }) {
   }, [cutoffDate, dashboardFilteredExpenses]);
 
   const extraBudget = elapsedDays > 0
-    ? (Number.isFinite(dailyBudget * elapsedDays - spendingToDate)
-        ? dailyBudget * elapsedDays - spendingToDate
+    ? (Number.isFinite(baseDailyBudget * elapsedDays - spendingToDate)
+        ? baseDailyBudget * elapsedDays - spendingToDate
         : 0)
     : 0;
+
+  const remainingBudgetDays = isCurrentSelectedMonth
+    ? Math.max(daysInMonth - elapsedDays, 1)
+    : daysInMonth;
+  const extraDrawdownPerDay = extraBudget < 0
+    ? Math.abs(extraBudget) / remainingBudgetDays
+    : 0;
+  const dailyBudget = Math.max(baseDailyBudget - extraDrawdownPerDay, 0);
 
   const pieData = useMemo(() => {
     const totals = {};
