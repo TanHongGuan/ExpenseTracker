@@ -2062,7 +2062,7 @@ function AppShell({ session }) {
     : 0;
 
   const remainingBudgetDays = isCurrentSelectedMonth
-    ? Math.max(daysInMonth - elapsedDays, 1)
+    ? Math.max(daysInMonth - now.getDate(), 1)
     : daysInMonth;
   const extraDrawdownPerDay = extraBudget < 0
     ? Math.abs(extraBudget) / remainingBudgetDays
